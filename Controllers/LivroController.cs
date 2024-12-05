@@ -111,6 +111,114 @@ namespace Bibliotec_mvc.Controllers
 
         }
 
+        [Route("Editar/{id}")]
+        public IActionResult Editar(int id){
+
+            ViewBag.CategoriaDoSistema = context.Categoria.ToList()!;
+
+            ViewBag.Admin = HttpContext.Session.GetString("Admin")!;
+
+            Livro livroEncontrado =  context.Livro.FirstOrDefault(Livro =>Livro.LivroID == id)!;
+
+            var categoriasDoLivroEncontrado = context.LivroCategoria.Where(identificadorLivro => identificadorLivro.LivroID == id).Select(livro => livro.Categoria).ToList();  
+
+            ViewBag.Livro = livroEncontrado;
+            ViewBag.Categoria = categoriasDoLivroEncontrado;
+
+
+            return View();
+        }
+
+        [Route("Atualizar/{id}")]
+        public IActionResult Atualizar (IFormCollection form,int id, IFormFile imagem){
+
+            Livro livroAtualizado = context.Livro.FirstOrDefault(livro => livro.LivroID == id)!;
+
+            livroAtualizado.Nome = form["Nome"];
+            livroAtualizado.Escritor = form["Escritor"];
+            livroAtualizado.Editora = form["Editora"];
+            livroAtualizado.Idioma = form["Idioma"];
+            livroAtualizado.Descricao = form["Descricao"];
+
+
+
+        if ( imagem.Length > 0)
+        {
+            var caminhoImagem = Path.Combine("wwwroot/images/livros", imagem.FileName)!;
+
+            if (!string.IsNullOrEmpty(livroAtualizado.Imagem))
+            {
+                var caminhoImagemAntiga = Path.Combine("wwwroot/images/livros", livroAtualizado.Imagem)!;
+
+
+                if (System.IO.File.Exists(caminhoImagemAntiga))
+            {
+                System.IO.File.Delete(caminhoImagemAntiga);
+            }
+
+
+            }
+            using(var stream = new FileStream(caminhoImagem, FileMode.Create))
+            {
+                imagem.CopyTo(stream);
+            }
+
+            livroAtualizado.Imagem = imagem.FileName;
+
+        }
+
+        var categoriasSelecionadas = form ["Categoria"].ToList();
+
+        var CategoriasAtuais = context.LivroCategoria.Where(livro => livro.LivroID == id).ToList();
+
+        foreach (var categoria in CategoriasAtuais)
+        {
+            if(categoriasSelecionadas.Contains(categoria.CategoriaID.ToString())){
+
+                context.LivroCategoria.Remove(categoria);
+
+            }
+        }
+
+        foreach (var categoria in categoriasSelecionadas)
+        {
+            if (!CategoriasAtuais.Any(c => c.CategoriaID.ToString() == categoria))      
+            {
+                context.LivroCategoria.Add(new LivroCategoria{
+
+                LivroID = id,
+                CategoriaID = int.Parse(categoria)
+                    
+                });
+            }
+        }
+        context.SaveChanges();
+
+        return LocalRedirect("/Livro");
+            }
+
+            [Route("Excluir/{id}")]
+        public IActionResult Excluir(int id){
+            Livro livroEncontrado = context.Livro.First(livro => livro.LivroID == id);
+
+            var categoriasDoLivro = context.LivroCategoria.Where(livro => livro.LivroID == id).ToList();
+
+            foreach(var categoria in categoriasDoLivro){
+                context.LivroCategoria.Remove(categoria);
+            }
+
+            context.Livro.Remove(livroEncontrado);
+            context.SaveChanges();
+
+
+
+            return LocalRedirect("/Livro");
+        }
+
+        }
+
+
+
         // [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
         // public IActionResult Error()
         // {
@@ -118,4 +226,3 @@ namespace Bibliotec_mvc.Controllers
         // }
     }
 
-}
